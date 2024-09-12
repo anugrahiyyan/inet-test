@@ -2,56 +2,59 @@ import subprocess
 import re
 import time
 import datetime
+import os
 
 downtime_count = 0
 
 def get_ping_time():
     try:
+        # Ping for Linux (use `-c` for count and `-W` for timeout)
         output = subprocess.check_output(["ping", "-c", "1", "google.com"], universal_newlines=True)
-        reply_lines = [line for line in output.splitlines() if "time=" in line]
+        reply_lines = [line for line in output.splitlines() if "from" in line]
         if reply_lines:
-            ip_address = reply_lines[0].split()[2].strip("()")
-            match = re.search(r"time=(\d+\.?\d*) ms", output)
-            if match:
-                avg_ping = float(match.group(1))
-                return avg_ping, ip_address
+            ip_address_match = re.search(r'from ([\d.]+)', reply_lines[0])
+            if ip_address_match:
+                ip_address = ip_address_match.group(1)
+                avg_ping_match = re.search(r'time=(\d+\.?\d*) ms', reply_lines[0])
+                if avg_ping_match:
+                    avg_ping = float(avg_ping_match.group(1))
+                    return avg_ping, ip_address
             else:
-                print("Ping failed. Could not find 'time=' in output.")
+                print("Failed to extract IP address.")
                 return None, None
         else:
             print("Ping failed. No replies received.")
             return None, None
-    except subprocess.CalledProcessError as e:
+
+    except subprocess.CalledProcessError:
         current_time = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
-        print(f"[{current_time}] Error detected: Please Check the Main Cable or Hub!!")
+        print(f"[{current_time}] Error detected: Please check the main cable or hub!")
         return None, None
 
-def send_beep_alert():
-    try:
-        subprocess.run(['beep', '-f', '1000', '-l', '500'], check=True)
-    except Exception as e:
-        print(f"Beep alert failed: {e}")
+def alert_sound():
+    # Make a beep sound on Linux
+    os.system('echo -e "\a"')
 
 if __name__ == "__main__":
     while True:
         ping_time, ip_address = get_ping_time()
+        current_time = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+
         if ping_time is not None:
             if ping_time > 990:
-                current_time = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
                 print(f"[{current_time}] Count: {downtime_count} | Ping : {ping_time} ms | <<---Critical--->> | ==========> Sending to system alert...")
-                send_beep_alert()
+                alert_sound()
+                downtime_count += 1
             elif ping_time > 550:
-                current_time = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
                 print(f"[{current_time}] Count: {downtime_count} | Ping : {ping_time} ms | <<---Warning--->>")
-                send_beep_alert()
+                downtime_count += 1
             else:
                 downtime_count = 0
-                current_time = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
-                print(f"[{current_time}] Connected to --> {ip_address} {ping_time} ms | Should we sleep yet ? || <<---Good--->> ||")
+                print(f"[{current_time}] Connected to --> {ip_address} {ping_time} ms | <<---Good--->>")
         else:
-            current_time = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
             downtime_count += 1
-            print(f"[{current_time}] Downtime count: {downtime_count} | WHAT THE HELL, Look at your INTERNET dude. It's Totally Shutdown || <<---Critical--->> || ==========> Sending to system alert...")
-            send_beep_alert()
+            print(f"[{current_time}] Downtime count: {downtime_count} | INTERNET IS DOWN || <<---Critical--->> ||")
+            alert_sound()
 
-        time.sleep(5 if ping_time is None else 1)
+        # Wait for 1 second between each ping check or 5 seconds if there's no internet
+        time.sleep(1 if ping_time is not None else 5)
