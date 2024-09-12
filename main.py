@@ -8,31 +8,19 @@ downtime_count = 0
 
 def get_ping_time():
     try:
-        # Ping for Linux (use `-c` for count and `-W` for timeout)
         output = subprocess.check_output(["ping", "-c", "1", "google.com"], universal_newlines=True)
-        print("Ping output:", output)  # Debugging line to print the ping output
-        
-        # Extract lines containing the response from the server
         reply_lines = [line for line in output.splitlines() if "from" in line]
-        print("Reply lines:", reply_lines)  # Debugging line to show the extracted lines
-        
+
         if reply_lines:
-            # Modify the regex to handle IPs inside parentheses
             ip_address_match = re.search(r'\(([\d.]+)\)', reply_lines[0])
             if ip_address_match:
                 ip_address = ip_address_match.group(1)
-                # Extract the ping time
                 avg_ping_match = re.search(r'time=(\d+\.?\d*) ms', reply_lines[0])
                 if avg_ping_match:
                     avg_ping = float(avg_ping_match.group(1))
                     return avg_ping, ip_address
-            else:
-                print("Failed to extract IP address.")
-                return None, None
-
-        else:
-            print("Ping failed. No replies received.")
             return None, None
+        return None, None
 
     except subprocess.CalledProcessError:
         current_time = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
@@ -40,7 +28,6 @@ def get_ping_time():
         return None, None
 
 def alert_sound():
-    # Make a beep sound on Linux
     os.system('echo -e "\a"')
 
 if __name__ == "__main__":
@@ -64,5 +51,4 @@ if __name__ == "__main__":
             print(f"[{current_time}] Downtime count: {downtime_count} | INTERNET IS DOWN || <<---Critical--->> ||")
             alert_sound()
 
-        # Wait for 1 second between each ping check or 5 seconds if there's no internet
         time.sleep(1 if ping_time is not None else 5)
