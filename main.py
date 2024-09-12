@@ -5,10 +5,11 @@ import datetime
 import os
 
 downtime_count = 0
+last_status = None  # Track the last status to avoid repetitive alerts
 
 def get_ping_time():
     try:
-        output = subprocess.check_output(["ping", "-c", "1", "google.com"], universal_newlines=True)
+        output = subprocess.check_output(["ping", "-c", "3", "google.com"], universal_newlines=True)
         reply_lines = [line for line in output.splitlines() if "from" in line]
 
         if reply_lines:
@@ -37,18 +38,30 @@ if __name__ == "__main__":
 
         if ping_time is not None:
             if ping_time > 990:
-                print(f"[{current_time}] Count: {downtime_count} | Ping : {ping_time} ms | <<---Critical--->> | ==========> Sending to system alert...")
-                alert_sound()
+                if last_status != "critical":
+                    print(f"[{current_time}] Ping : {ping_time} ms | <<---Critical--->> | ==========> System alert...")
+                    alert_sound()
                 downtime_count += 1
+                last_status = "critical"
             elif ping_time > 550:
-                print(f"[{current_time}] Count: {downtime_count} | Ping : {ping_time} ms | <<---Warning--->>")
+                if last_status != "warning":
+                    print(f"[{current_time}] Ping : {ping_time} ms | <<---Warning--->>")
                 downtime_count += 1
+                last_status = "warning"
             else:
-                downtime_count = 0
-                print(f"[{current_time}] Connected to --> {ip_address} {ping_time} ms | <<---Good--->>")
+                if last_status != "good":
+                    downtime_count = 0
+                    print(f"[{current_time}] Connected to --> {ip_address} {ping_time} ms | <<---Good--->>")
+                last_status = "good"
         else:
             downtime_count += 1
-            print(f"[{current_time}] Downtime count: {downtime_count} | INTERNET IS DOWN || <<---Critical--->> ||")
-            alert_sound()
+            if last_status != "down":
+                print(f"[{current_time}] Downtime count: {downtime_count} | INTERNET IS DOWN || <<---Critical--->>")
+                alert_sound()
+            last_status = "down"
 
-        time.sleep(1 if ping_time is not None else 5)
+        # Adjust sleep time based on network conditions
+        if last_status == "good":
+            time.sleep(5)  # Longer interval for good status
+        else:
+            time.sleep(1)  # Shorter interval for critical states
