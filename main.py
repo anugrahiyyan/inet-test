@@ -17,8 +17,8 @@ def get_ping_time():
         print("Reply lines:", reply_lines)  # Debugging line to show the extracted lines
         
         if reply_lines:
-            # Extract the IP address
-            ip_address_match = re.search(r'from ([\d.]+)', reply_lines[0])
+            # Modify the regex to handle IPs inside parentheses
+            ip_address_match = re.search(r'\(([\d.]+)\)', reply_lines[0])
             if ip_address_match:
                 ip_address = ip_address_match.group(1)
                 # Extract the ping time
